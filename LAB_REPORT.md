@@ -96,3 +96,15 @@ Initialized DVC, track the images and set default DVC remote. TO verify :```uv r
 
 ```data/raw``` file is tracked by git and contains values for outs -> md5, size, nfiles, hash, path
 
+**Engineering checkpoint 3.** In one sentence each, state what the Git remote stores, what the DVC remote stores, and whether git push transfers the DVC-managed raw images.
+- Git remote stores remote commits of files such as model implementation + dvc/raw (points to dataset used at the specific commit) excluding raw dataset files
+- DVC remote stores dataset files identified by its version that are pointable by git
+- No, git push did not transfers the DVC-managed raw images as its included as ignored file in .gitignore to avoid repository bloat, expensive clones, inefficient differentiation, and collaboration friction 
+
+push dvc remote ```uv run --locked dvc push .\data\raw.dvc```
+```
+Collecting                                                                                     |1.31k [00:00, 4.20kentry/s]
+Pushing
+1297 files pushed
+```
+
