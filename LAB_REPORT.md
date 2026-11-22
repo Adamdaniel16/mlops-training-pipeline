@@ -162,3 +162,62 @@ data validation test (`uv run --locked pytest -q tests/test_data_validation.py t
 }
 ```
 
+## Milestone 4 - Design the DVC pipeline from scratch
+Created `dvc.yaml` with four stages: `validate`, `prepare`, `train`, and `evaluate`.
+
+### Pipeline design
+
+- `validate` checks `data/raw` and writes `reports/data_quality.json`
+- `prepare` depends on the raw data and quality report. It uses `data.image_size` and writes `data/processed` plus `reports/data_summary.json`
+- `train` uses prepared train/validation images and manifests. It tracks the local checkpoint and training artifacts with DVC, and records the numeric training summary as a metric.
+- `evaluate` uses prepared test images and the selected MLflow Run ID. It writes the test metrics and confusion-matrix image
+- TRAIN and EVALUATE are separate branches after PREPARE. EVALUATE does not depend on TRAIN or `models/model.pt`; the selected model remains in MLflow
+- Python stages list `pyproject.toml` and `uv.lock` as dependencies. Each stage tracks only the parameters it uses
+
+### Pipeline validation
+
+Commands:
+
+```
+uv run --locked dvc stage list
+uv run --locked dvc dag
+```
+
+Results:
+```
+validate  Reports reports/data_quality.json
+prepare   Outputs data/processed; Reports reports/data_summary.json
+train     Outputs models/model.pt, reports/training_curves.png, reports/run_manifest.json…
+evaluate  Outputs reports/test_confusion_matrix.png; Reports reports/test_metrics.json
+```
+```
+        +--------------+          
+        | data\raw.dvc |          
+        +--------------+          
+           **        **           
+         **            **         
+        *                **       
++----------+               *      
+| validate |             **       
++----------+           **         
+           **        **           
+             **    **             
+               *  *               
+           +---------+            
+           | prepare |            
+           +---------+            
+           **        **           
+         **            **         
+        *                *        
+  +-------+         +----------+  
+  | train |         | evaluate |  
+  +-------+         +----------+ 
+```
+
+Confirmed that all four stages appear and that EVALUATE does not depend on TRAIN.
+
+### What the pipeline output shows
+DVC recognizes all four stages and their declared outputs. The `data\raw.dvc` node in the DAG represents the DVC-tracked raw dataset input; it is not an additional pipeline stage.
+
+The raw dataset feeds `validate`, and validation’s quality report is a dependency of `prepare`, so preparation follows the quality gate. PREPARE then supplies shared processed data to TRAIN and EVALUATE. These stages are separate branches: TRAIN creates the candidate model and training artifacts, while EVALUATE uses the prepared test data and the selected MLflow Run. EVALUATE does not consume `models/model.pt` or depend on TRAIN; the selected model remains in MLflow.
+
