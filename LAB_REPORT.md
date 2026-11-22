@@ -17,6 +17,15 @@ Installed 162 packages in 6.28s
 .   [100%]
 1 passed in 10.82s
 ```
+
+**Engineering checkpoint 1.** Why is a working `model.pt` insuﬀicient evidence that an experiment is reproducible?
+
+A `model.pt` file only stores the final trained weights. It provides no record of how those weights were generated, preventing someone else from re-running the experiment to verify the results. To prove reproducibility, you must also capture the full provenance of the training run:
+- **Code**: The exact version of the training scripts and model architecture (via a Git commit SHA)
+- **Data**: The specific dataset version, preprocessing steps, and train/validation splits (tracked via DVC)
+- **Configuration & Seeds**: The exact hyperparameters (e.g., learning rate, batch size, epochs) and random seeds used to control randomness
+- **Software Environment**: The locked dependency and runtime versions (e.g., Python, PyTorch, OS) 
+
 ## Milestone 1 - Make training repeatable
 >pyproject.toml
 
@@ -220,4 +229,47 @@ Confirmed that all four stages appear and that EVALUATE does not depend on TRAIN
 DVC recognizes all four stages and their declared outputs. The `data\raw.dvc` node in the DAG represents the DVC-tracked raw dataset input; it is not an additional pipeline stage.
 
 The raw dataset feeds `validate`, and validation’s quality report is a dependency of `prepare`, so preparation follows the quality gate. PREPARE then supplies shared processed data to TRAIN and EVALUATE. These stages are separate branches: TRAIN creates the candidate model and training artifacts, while EVALUATE uses the prepared test data and the selected MLflow Run. EVALUATE does not consume `models/model.pt` or depend on TRAIN; the selected model remains in MLflow.
+
+## Milestone 5 - Record what each MLflow Run used
+
+### 5.1 Run provenance and complete `src/provenance.py`
+
+Implemented `build_run_manifest()` in `src/provenance.py`. Each Run’s
+`reports/run_manifest.json` records its Git revision and working-tree status,
+training/validation data identity, environment versions, CUDA runtime, training
+configuration, device, random seed, and MLflow Run ID.
+
+Provenance test (`uv run --locked pytest -q .\tests\test_provenance.py`)
+```
+.       [100%]
+1 passed in 1.88s
+```
+
+### 5.2 MLflow Run logging
+
+Updated `src/train.py` to create one MLflow Run per training execution. At the start of the Run, it writes the provenance manifest and logs the required parameters, including `training_data_identity`.
+
+The Run also logs the `bean-training` dataset from `data/processed/manifests/train.csv`, with `label` as its target. During training it logs train/validation loss, validation accuracy, and validation macro-F1 at each epoch, plus total training time.
+
+Logged artifacts:
+- `reports/training_curves.png`
+- `reports/train_summary.json`
+- `reports/run_manifest.json`
+
+Logged the final PyTorch model as `bean-cnn`, with a signature and input example
+from the validation set, and metadata for class names and image size. The
+model is exported on CPU; the test set is not used for model logging.
+
+### 5.3 Tests and commit
+
+Full test suite (`uv run --locked pytest -q`):
+```
+...................     [100%]
+19 passed in 6.74s
+```
+
+**Engineering checkpoint 4**. In one sentence per tool, explain what Git, DVC and MLflow each record about a training Run:
+- **Git** records the committed code version and whether the working tree has uncommitted changes.
+- **DVC** tracks dataset and pipeline file dependencies and outputs by version.
+- **MLflow** records each training Run’s parameters, dataset input, metrics, artifacts, and model.
 

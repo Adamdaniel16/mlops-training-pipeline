@@ -3,6 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import importlib.metadata
+import platform
+import subprocess
+import torch
 
 
 def training_data_identity(
@@ -42,7 +46,63 @@ def build_run_manifest(params: dict, device: str, mlflow_run_id: str) -> dict:
     Hints: subprocess, platform, importlib.metadata, torch,
     training_data_identity().
     """
-    raise NotImplementedError("Implement run provenance capture")
+    git_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if git_commit.returncode == 0:
+        git_status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        commit_sha = git_commit.stdout.strip()
+        working_tree_dirty = bool(git_status.stdout.strip())
+    else:
+        # Tests may call this function from a temporary directory outside a Git repo
+        commit_sha = None
+        working_tree_dirty = None
+
+    train = params["train"]
+    augmentation = params["augmentation"]
+
+    return {
+        "source": {
+            "git_commit": commit_sha,
+            "working_tree_dirty": working_tree_dirty,
+        },
+        "data": {
+            "training_data_identity": training_data_identity(),
+        },
+        "environment": {
+            "os": platform.platform(),
+            "python": platform.python_version(),
+            "torch": importlib.metadata.version("torch"),
+            "torchvision": importlib.metadata.version("torchvision"),
+            "dvc": importlib.metadata.version("dvc"),
+            "mlflow": importlib.metadata.version("mlflow"),
+            "cuda": torch.version.cuda,
+        },
+        "configuration": {
+            "image_size": int(params["data"]["image_size"]),
+            "batch_size": int(train["batch_size"]),
+            "epochs": int(train["epochs"]),
+            "learning_rate": float(train["learning_rate"]),
+            "dropout": float(train["dropout"]),
+            "augmentation_enabled": bool(augmentation["enabled"]),
+            "horizontal_flip": float(augmentation["horizontal_flip"]),
+            "rotation_degrees": float(augmentation["rotation_degrees"]),
+        },
+        "execution": {
+            "device": device,
+            "random_state": int(train["random_state"]),
+            "mlflow_run_id": mlflow_run_id,
+        },
+    }
 
 
 def write_run_manifest(params: dict, device: str, mlflow_run_id: str, path: Path) -> dict:
