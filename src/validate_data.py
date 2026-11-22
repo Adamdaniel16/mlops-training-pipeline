@@ -22,7 +22,55 @@ def validate_dataset(raw_root: Path) -> dict:
     TODO: implement the checks and return a JSON-serializable report.
     The report must not contain timestamps because it is a DVC output.
     """
-    raise NotImplementedError("Implement the Core data-quality gate")
+    classes = sorted(EXPECTED_CLASSES)
+    split_reports = {}
+
+    for split, expected_count in sorted(EXPECTED_SPLITS.items()):
+        split_dir = raw_root / split
+        if not split_dir.is_dir():
+            raise FileNotFoundError(f"Missing dataset split: {split_dir}")
+
+        present_classes = {path.name for path in split_dir.iterdir() if path.is_dir()}
+        if present_classes != EXPECTED_CLASSES:
+            raise RuntimeError(
+                f"Class mismatch in {split_dir}: expected {classes}, "
+                f"found {sorted(present_classes)}"
+            )
+
+        class_counts = {}
+        for class_name in classes:
+            class_dir = split_dir / class_name
+            images = sorted(
+                path
+                for path in class_dir.rglob("*")
+                if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+            )
+            if not images:
+                raise RuntimeError(f"No images found in {class_dir}")
+
+            for image_path in images:
+                with Image.open(image_path) as image:
+                    image.load()    # decoded by Pillow
+            class_counts[class_name] = len(images)
+
+        image_count = sum(class_counts.values())
+        if image_count != expected_count:   # exactly the expected classes exist
+            raise RuntimeError(
+                f"Image count mismatch in {split_dir}: expected "
+                f"{expected_count}, found {image_count}"
+            )
+
+        split_reports[split] = {
+            "images": image_count,
+            "class_counts": class_counts,
+        }
+
+    return {
+        "status": "PASS",
+        "classes": classes,
+        "splits": split_reports,
+        "total_images": sum(report["images"] for report in split_reports.values()),
+    }
 
 
 def main() -> None:
@@ -36,3 +84,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

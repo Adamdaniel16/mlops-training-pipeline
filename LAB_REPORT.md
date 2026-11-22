@@ -45,7 +45,7 @@ Some tests fail because of TODOs that are needed to be completed. Leave the test
 - Implemented seed_worker(seed) to seed a DataLoader worker from PyTorch's worker seed.
 - Implemented correctly make_generator(seed) to return a seeded ```torch.Generator``` used for deterministic shuffling.
 
-Test run result
+Test run result (```uv run --locked pytest -q tests/test_reproducibility.py```)
 >3 passed in 1.91s  # reproducibility test
 
 >8 failed, 11 passed in 6.93s # starter test (global)
@@ -101,10 +101,64 @@ Initialized DVC, track the images and set default DVC remote. TO verify :```uv r
 - DVC remote stores dataset files identified by its version that are pointable by git
 - No, git push did not transfers the DVC-managed raw images as its included as ignored file in .gitignore to avoid repository bloat, expensive clones, inefficient differentiation, and collaboration friction 
 
-push dvc remote ```uv run --locked dvc push .\data\raw.dvc```
+push dvc remote `uv run --locked dvc push .\data\raw.dvc`
 ```
 Collecting                                                                                     |1.31k [00:00, 4.20kentry/s]
 Pushing
 1297 files pushed
+```
+
+## Milestone 3 - Implement a Core data-quality gate
+### Implemented `validate_data.py` to validate raw dataset and output deterministic quality report.
+
+The implementation will verify:
+- required splits exist;
+- exactly the expected classes exist in every split;
+- expected image counts are present;
+- every image can be fully decoded by Pillow (`Image.load()` or equivalent);
+- no split or class is empty.
+
+data validation test (`uv run --locked pytest -q tests/test_data_validation.py tests/test_validation_contract.py`)
+```
+.......     [100%] 
+7 passed in 0.21s
+```
+
+```json
+{
+  "classes": [
+    "angular_leaf_spot",
+    "bean_rust",
+    "healthy"
+  ],
+  "splits": {
+    "test": {
+      "class_counts": {
+        "angular_leaf_spot": 43,
+        "bean_rust": 43,
+        "healthy": 42
+      },
+      "images": 128
+    },
+    "train": {
+      "class_counts": {
+        "angular_leaf_spot": 345,
+        "bean_rust": 348,
+        "healthy": 341
+      },
+      "images": 1034
+    },
+    "validation": {
+      "class_counts": {
+        "angular_leaf_spot": 44,
+        "bean_rust": 45,
+        "healthy": 44
+      },
+      "images": 133
+    }
+  },
+  "status": "PASS",
+  "total_images": 1295
+}
 ```
 
