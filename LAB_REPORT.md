@@ -324,3 +324,16 @@ Check | VALIDATE | PREPARE | TRAIN | EVALUATE | Terminal lines
 Rerun with no change | REUSED | REUSED | REUSED | NOT RUN | Data and pipelines are up to date
 Add comment to `src/validate_data.py` | RERUN | REUSED | REUSED | NOT RUN | Running stage 'validate'
 Learning rate set to 0.0003 (Run B) | REUSED | REUSED | RERUN | NOT RUN | Running stage 'train'
+
+## Milestone 7 - Compare three controlled runs
+
+### 7.1 Create Run C
+
+1. Set the `learning rate` back to 0.001.
+2. Change `train.dropout` to 0.5.
+
+>**Initial expecation:**
+Run C expectation (dropout 0.30 → 0.50): The CNN is small (the classifier is a single Linear(64→3) layer), so it is more likely to underfit than overfit. I expect higher train loss and a slightly slower improvement in val loss. Val accuracy and macro-F1 should be similar to A or slightly lower. Higher dropout would only help if A shows a large train/val gap, and I don't expect one.
+
+### 7.2 Compare the validation results
+
