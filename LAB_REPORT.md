@@ -329,11 +329,31 @@ Learning rate set to 0.0003 (Run B) | REUSED | REUSED | RERUN | NOT RUN | Runnin
 
 ### 7.1 Create Run C
 
-1. Set the `learning rate` back to 0.001.
-2. Change `train.dropout` to 0.5.
+1. Set the `learning rate` back to 0.001
+2. Change `train.dropout` to 0.5
 
 >**Initial expecation:**
 Run C expectation (dropout 0.30 → 0.50): The CNN is small (the classifier is a single Linear(64→3) layer), so it is more likely to underfit than overfit. I expect higher train loss and a slightly slower improvement in val loss. Val accuracy and macro-F1 should be similar to A or slightly lower. Higher dropout would only help if A shows a large train/val gap, and I don't expect one.
 
+Run | Controlled change | Val. Accuracy | Val. Macro-F1 | Training time | MLflow Run ID
+|---|---|---|---|---|---|
+A | Baseline (lr 0.001, dropout 0.30) | 0.654 | 0.642 | 12.355s | 519d86318a0d431fb3f9fc8f97786329
+B | learning_rate 0.0003 | 0.692 | 0.677 | 11.688s | f57fed6025364ee5bc746d680b822ee1
+C | dropout 0.50 | 0.617 | 0.607 | 13.386s | 37f19b77a90b4b24a0adb729b76f86db
+
 ### 7.2 Compare the validation results
+
+- **B vs A:** Macro-F1 rose from 0.642 to 0.677 (+0.035) and accuracy from 0.654 to 0.692. This does not support my prediction that a lower learning rate would converge more slowly and score lower. A plausible reason is that lr=0.001 with Adam was noisy or overshooting at the last epoch, while 0.0003 gave a more stable final model.
+
+- **C vs A:** Macro-F1 fell from 0.642 to 0.607 (−0.035). This supports my prediction that dropout 0.50 would not help a small, probably underfitting model. The drop was a bit larger than "slightly."
+
+- **Training time:** The differences (11.7 s to 13.4 s) are small and likely CPU timing noise. The settings changed should not affect cost.
+
+>**Caveat:** One seed, one run per setting, 133 validation images. A 0.035 gap is about 5 images, so the ranking is suggestive, not proven. All scores are low (about 0.61 to 0.68), so every candidate is probably under-trained.
+
+**Engineering checkpoint 6.** Justify the primary metric you chose for this three-class problem. Explain why you use the test set only after choosing a model.
+
+>Primary metric: val macro-F1. It averages F1 across the three classes (angular_leaf_spot, bean_rust, healthy) with equal weight, so a model can't score well by favoring one class, and it accounts for both precision and recall. Accuracy hides per-class failures. Ties are broken by lower val_loss, then shorter training time.
+
+>Test set only after selection: If the test set guided the choice, the final score would be optimistically biased because we'd have picked the model that happens to fit it. Keeping it untouched until one Run is frozen gives an unbiased estimate of how the chosen model performs on new data.
 
