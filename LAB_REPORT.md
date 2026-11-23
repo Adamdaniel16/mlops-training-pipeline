@@ -357,3 +357,10 @@ C | dropout 0.50 | 0.617 | 0.607 | 13.386s | 37f19b77a90b4b24a0adb729b76f86db
 
 >Test set only after selection: If the test set guided the choice, the final score would be optimistically biased because we'd have picked the model that happens to fit it. Keeping it untouched until one Run is frozen gives an unbiased estimate of how the chosen model performs on new data.
 
+## Milestone 8 - Select and test one model
+
+### Selected Run: `Run B, f57fed6025364ee5bc746d680b822ee1`.
+- **Val macro-F1**: 0.677 (A: 0.642, C: 0.607)
+- **Other evidence**: best val accuracy (0.692) and shortest training time (11.7 s)
+- **Limitation**: one seed and 133 validation images, so a 5-image margin may be noise. Absolute performance is low, so a longer schedule or tuning would likely improve all runs.
+
