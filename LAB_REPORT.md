@@ -234,10 +234,7 @@ The raw dataset feeds `validate`, and validation’s quality report is a depende
 
 ### 5.1 Run provenance and complete `src/provenance.py`
 
-Implemented `build_run_manifest()` in `src/provenance.py`. Each Run’s
-`reports/run_manifest.json` records its Git revision and working-tree status,
-training/validation data identity, environment versions, CUDA runtime, training
-configuration, device, random seed, and MLflow Run ID.
+Implemented `build_run_manifest()` in `src/provenance.py`. Each Run’s `reports/run_manifest.json` records its Git revision and working-tree status, training/validation data identity, environment versions, CUDA runtime, training configuration, device, random seed, and MLflow Run ID.
 
 Provenance test (`uv run --locked pytest -q .\tests\test_provenance.py`)
 ```
@@ -272,4 +269,42 @@ Full test suite (`uv run --locked pytest -q`):
 - **Git** records the committed code version and whether the working tree has uncommitted changes.
 - **DVC** tracks dataset and pipeline file dependencies and outputs by version.
 - **MLflow** records each training Run’s parameters, dataset input, metrics, artifacts, and model.
+
+## Milestone 6 - Predict which stages need to run again
+
+### 6.1 Predict before running DVC
+
+| Change | VALIDATE | PREPARE | TRAIN | EVALUATE |
+|---|---|---|---|---|
+| Change `train.learning_rate` | REUSED | REUSED | RERUN | REUSED |
+| Change `data.image_size` | REUSED | RERUN | RERUN | NEEDS UPDATE |
+| Edit `src/validate_data.py`; quality report stays the same | RERUN | REUSED | REUSED | REUSED |
+| Edit only `README.md` | REUSED | REUSED | REUSED | REUSED |
+
+**Engineering checkpoint 5.** Explain your labels for at least two rows: one setting change and one file edit. For each stage in those rows, name the input that changes or explain why its inputs stay the same. Use your `dvc.yaml` for this explanation.
+- only **TRAIN** lists `train.learning_rate` as a parameter. With the selected Run ID fixed, **EVALUATE**’s inputs haven’t changed.
+- Validator edit, same report: **VALIDATE** depends on the source file, so it reruns. If its report content remains unchanged, **PREPARE**’s report dependency is unchanged, so downstream stages can reuse their outputs.
+
+### 6.2 Start MLflow
+
+MLFlow page opened succesfully via (`uv run --locked mlflow server --host 127.0.0.1 --port 5000 --workers 1 --backend-store-uri sqlite:///mlflow.db`)
+
+### 6.3 Run and check the training stages
+
+1. Run A (baseline)
+MLflow Run ID : 519d86318a0d431fb3f9fc8f97786329
+
+2. Re-run for verification (unchanged)
+```
+'data\raw.dvc' didn't change, skipping                                                                     
+Stage 'validate' didn't change, skipping                                                                   
+Stage 'prepare' didn't change, skipping                                                                    
+Stage 'train' didn't change, skipping                                                                      
+Data and pipelines are up to date.
+```
+
+3. 
+
+
+### 6.4 Verify the learning-rate change
 
