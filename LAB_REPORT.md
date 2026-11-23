@@ -292,7 +292,9 @@ MLFlow page opened succesfully via (`uv run --locked mlflow server --host 127.0.
 ### 6.3 Run and check the training stages
 
 1. Run A (baseline)
+```
 MLflow Run ID : 519d86318a0d431fb3f9fc8f97786329
+```
 
 2. Re-run for verification (unchanged)
 ```
@@ -303,8 +305,22 @@ Stage 'train' didn't change, skipping
 Data and pipelines are up to date.
 ```
 
-3. 
-
+3. after add comment to src/validate_data.py
+```
+MLflow Run ID : b961546f67de49e795b49088170cab40
+> it validates reruns, the rest are reused
+```
 
 ### 6.4 Verify the learning-rate change
 
+After set train.learning_rate: 0.0003 in params.yaml
+```
+(Run B)
+MLflow Run ID : f57fed6025364ee5bc746d680b822ee1
+```
+
+Check | VALIDATE | PREPARE | TRAIN | EVALUATE | Terminal lines
+|---|---|---|---|---|---|
+Rerun with no change | REUSED | REUSED | REUSED | NOT RUN | Data and pipelines are up to date
+Add comment to `src/validate_data.py` | RERUN | REUSED | REUSED | NOT RUN | Running stage 'validate'
+Learning rate set to 0.0003 (Run B) | REUSED | REUSED | RERUN | NOT RUN | Running stage 'train'
